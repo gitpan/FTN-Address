@@ -1,11 +1,12 @@
 # FTN/Address.pm
 #
-# Copyright (c) 2005 Serguei Trouchelle. All rights reserved.
+# Copyright (c) 2005-2006 Serguei Trouchelle. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the same terms as Perl itself.
 
 # History:
+#  1.02  2006/09/07 Added empty value processing
 #  1.01  2005/02/16 Initial revision
 
 =head1 NAME
@@ -14,13 +15,20 @@ FTN::Address - Process FTN addresses
 
 =head1 SYNOPSIS
 
- my $addr = new FTN::Address('2:550/4077');
+ my $addr = new FTN::Address('2:464/4077');
 
- my $address4D = $addr->get();     # 2:550/4077.0
+ my $address4D = $addr->get();     # 2:464/4077.0
 
- my $address5D = $addr->getfull(); # 2:550/4077.0@fidonet
+ my $address5D = $addr->getfull(); # 2:464/4077.0@fidonet
 
- my $fqdn = $addr->fqdn();         # f4077.n550.z2.fidonet.net
+ my $fqdn = $addr->fqdn();         # f4077.n464.z2.fidonet.net
+
+
+ my $addr = empty FTN::Address();
+
+ $addr->assign('2:464/4077');
+
+ my $address4D = $addr->get();     # 2:464/4077.0
 
 =head1 DESCRIPTION
 
@@ -33,11 +41,24 @@ FTN::Address
 This method creates FTN::Address object.
 Takes FTN address as argument. Address can be feed in three addressing variants:
 
-3D, ex.: new FTN::Address '2:550/0'
-4D, ex.: new FTN::Address '2:550/4077.1'
-5D, ex.: new FTN::Address '2:550/357.0@fidonet'
+3D, ex.: new FTN::Address '2:464/0'
+4D, ex.: new FTN::Address '2:464/4077.1'
+5D, ex.: new FTN::Address '2:464/357.0@fidonet'
 
 Default domain for 3D and 4D address is 'fidonet'
+
+=head2 empty
+
+This method creates empty FTN::Address object. 
+You cannot use it before assigning a new value. 
+
+Takes no parameters.
+
+=head2 assign( $address )
+
+This method assign new address to FTN::Address object. 
+
+Takes FTN address as argument (like 'new' method).
 
 =head2 get()
 
@@ -62,13 +83,13 @@ Default root domain is 'net', default level is '0'.
 
 Examples:
 
- my $addr = new FTN::Address('2:550/4077');
+ my $addr = new FTN::Address('2:464/4077');
  
- print $addr->fqdn();                    # f4077.n550.z2.fidonet.net
+ print $addr->fqdn();                    # f4077.n464.z2.fidonet.net
  
- print $addr->fqdn('org');               # f4077.n550.z2.fidonet.org
+ print $addr->fqdn('org');               # f4077.n464.z2.fidonet.org
  
- print $addr->fqdn('railways.dp.ua', 2); # f4077.n550.railways.dp.ua
+ print $addr->fqdn('railways.dp.ua', 2); # f4077.n464.railways.dp.ua
 
 =head1 AUTHORS
 
@@ -76,7 +97,7 @@ Serguei Trouchelle E<lt>F<stro@railways.dp.ua>E<gt>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2005 Serguei Trouchelle. All rights reserved.
+Copyright (c) 2005-2006 Serguei Trouchelle. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
@@ -95,15 +116,19 @@ our @EXPORT_OK = qw//;
 our %EXPORT_TAGS = ();
 our @ISA = qw/Exporter/;
 
-$FTN::Address::VERSION = "1.01";
+$FTN::Address::VERSION = "1.02";
 
 our $DEFAULT_DOMAIN = 'fidonet';
 our $DEFAULT_ROOT = 'net';
 
+#
+# Constructor
+#
+
 sub new {
   my $self = shift;
   my $addr = shift;
-  if ($addr =~ m!^(\d+):(\d+)/(\d+)(\.(\d+))?(@(\w+))?$!) {
+  if ($addr and $addr =~ m!^(\d+):(\d+)/(\d+)(\.(\d+))?(@(\w+))?$!) {
     $self = 
        {'z' => $1,
         'n' => $2,
@@ -115,7 +140,7 @@ sub new {
                         $self->{'f'} . '.' . $self->{'p'};
     $self->{'__addrd'} = $self->{'__addr'} . '@' . $self->{'d'};
   } else {
-    $@ = join('', 'Invalid address: ', $addr);
+    $@ = join('', 'Invalid address: ', def($addr));
     return undef;
   }
 
@@ -123,18 +148,77 @@ sub new {
   return $self;
 }
 
+#
+# Empty constructor
+#
+
+sub empty {
+  my $self = shift;
+  $self = {'__empty' => 1};
+  bless $self;
+  return $self;
+}
+
+#
+# Assign new value
+#
+
+sub assign {
+  my $self = shift;
+  my $addr = shift;
+  if ($addr and $addr =~ m!^(\d+):(\d+)/(\d+)(\.(\d+))?(@(\w+))?$!) {
+    $self->{'z'} = $1;
+    $self->{'n'} = $2;
+    $self->{'f'} = $3;
+    $self->{'p'} = $5 ? $5 : 0;
+    $self->{'d'} = $7 ? $7 : $DEFAULT_DOMAIN;
+    $self->{'__addr'} = $self->{'z'} . ':' . $self->{'n'} . '/' .
+                        $self->{'f'} . '.' . $self->{'p'};
+    $self->{'__addrd'} = $self->{'__addr'} . '@' . $self->{'d'};
+    delete $self->{'__empty'};
+  } else {
+    $@ = join('', 'Invalid address: ', $addr);
+    $self->{'__empty'} = 1;
+    return undef;
+  }
+}
+
+#
+# get 4D address
+#
+
 sub get {
   my $self = shift;
+  if ($self->{'__empty'}) {
+    $@ = 'Cannot use empty FTN::Address object';
+    return undef;
+  }
   return $self->{'__addr'};
 }
 
+#
+# get 5D address
+#
+
 sub getfull {
   my $self = shift;
+  if ($self->{'__empty'}) {
+    $@ = 'Cannot use empty FTN::Address object';
+    return undef;
+  }
   return $self->{'__addrd'};
 }
 
+#
+# get FQDN
+#
+
 sub fqdn {
   my $self = shift;
+  if ($self->{'__empty'}) {
+    $@ = 'Cannot use empty FTN::Address object';
+    return undef;
+  }
   my $root = shift || $DEFAULT_ROOT;
   my $level = shift || 0;
 
@@ -169,6 +253,16 @@ sub fqdn {
     $@ = 'Invalid level: ' . $level;
     return undef;
   }
+}
+
+#
+# Make value defined
+#
+
+sub def {
+  my $val = shift;
+  return '<undef>' unless defined $val;
+  return $val;
 }
 
 1;

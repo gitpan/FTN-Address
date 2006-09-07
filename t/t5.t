@@ -29,7 +29,11 @@ my @res =  ('f357.n550.z2.fidonet.net',
            );
 
 foreach my $i (0 .. $#addr) {
-  if (my $node = new FTN::Address($addr[$i])) {
+  if (my $node = empty FTN::Address()) {
+    $node->assign($addr[$i]);
+
+    print $node->fqdn($dom[$i], $i), "\n\n";
+
     ok($node->fqdn($dom[$i], $i), $res[$i]);
   } else {
     ok('object', 'failed') unless $node;
