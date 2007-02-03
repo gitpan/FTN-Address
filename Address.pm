@@ -6,6 +6,7 @@
 # under the same terms as Perl itself.
 
 # History:
+#  1.03  2007/02/04 Quality update (Test::Pod, Test::Pod::Coverage), Data::Define used
 #  1.02  2006/09/07 Added empty value processing
 #  1.01  2005/02/16 Initial revision
 
@@ -112,11 +113,13 @@ use Config;
 use strict;
 use warnings;
 
+use Data::Define qw/brockets/;
+
 our @EXPORT_OK = qw//;
 our %EXPORT_TAGS = ();
 our @ISA = qw/Exporter/;
 
-$FTN::Address::VERSION = "1.02";
+$FTN::Address::VERSION = "1.03";
 
 our $DEFAULT_DOMAIN = 'fidonet';
 our $DEFAULT_ROOT = 'net';
@@ -140,7 +143,7 @@ sub new {
                         $self->{'f'} . '.' . $self->{'p'};
     $self->{'__addrd'} = $self->{'__addr'} . '@' . $self->{'d'};
   } else {
-    $@ = join('', 'Invalid address: ', def($addr));
+    $@ = join('', 'Invalid address: ', define($addr));
     return undef;
   }
 
@@ -253,16 +256,6 @@ sub fqdn {
     $@ = 'Invalid level: ' . $level;
     return undef;
   }
-}
-
-#
-# Make value defined
-#
-
-sub def {
-  my $val = shift;
-  return '<undef>' unless defined $val;
-  return $val;
 }
 
 1;

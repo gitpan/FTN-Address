@@ -7,6 +7,8 @@ t/t4.t
 t/t5.t
 t/t6.t
 t/t7.t
+t/tpod.t
+t/tpodc.t
 README
 CHANGES
 MANIFEST
